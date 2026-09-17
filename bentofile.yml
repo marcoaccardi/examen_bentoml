@@ -1,0 +1,34 @@
+# Bento for the API service and the two workers.
+
+service: "src.service_batch:AdmissionAPI"
+description: "Admission Prediction Service - API gateway with single and batch workers"
+
+labels:
+  owner: "Marco Accardi"
+  project: "admission_prediction"
+  architecture: "api+workers"
+
+# Only the files needed to serve the model.
+include:
+  - "src/__init__.py"
+  - "src/service_batch.py"
+  - "src/auth/"
+  - "src/models/"
+
+# Model included in the bento.
+models:
+  - admission_lr:latest
+
+docker:
+  # scikit-learn needs libgomp.
+  system_packages:
+    - libgomp1
+
+python:
+  packages:
+    - bentoml==1.4.35
+    - scikit-learn==1.3.2
+    - pandas==2.3.3
+    - numpy==1.26.4
+    - pydantic==2.12.2
+    - pyjwt==2.10.1

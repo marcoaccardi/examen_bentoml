@@ -1,0 +1,56 @@
+# Three containers from the same image.
+#
+#   client -> api (3000) -> single (3001)
+#                        -> batch  (3002)
+#
+# Only the api publishes a port, the workers stay on the internal network.
+
+services:
+  single:
+    image: admission_service:latest
+    container_name: admission_single
+    # Same image, different service. BENTOML_HOME lets it find the model inside the bento.
+    entrypoint: ["bentoml", "serve", "src.service_batch:SinglePredictor", "--host", "0.0.0.0", "--port", "3001"]
+    working_dir: /home/bentoml/bento/src
+    environment:
+      BENTOML_HOME: /home/bentoml/bento
+    expose:
+      - "3001"
+    networks:
+      - admission
+
+  batch:
+    image: admission_service:latest
+    container_name: admission_batch
+    entrypoint: ["bentoml", "serve", "src.service_batch:BatchPredictor", "--host", "0.0.0.0", "--port", "3002"]
+    working_dir: /home/bentoml/bento/src
+    environment:
+      BENTOML_HOME: /home/bentoml/bento
+    expose:
+      - "3002"
+    networks:
+      - admission
+
+  api:
+    image: admission_service:latest
+    container_name: admission_api
+    entrypoint: ["bentoml", "serve", "src.service_batch:AdmissionAPI", "--host", "0.0.0.0", "--port", "3000"]
+    working_dir: /home/bentoml/bento/src
+    environment:
+      BENTOML_HOME: /home/bentoml/bento
+      # URLs of the two workers.
+      SINGLE_PREDICTOR_URL: http://single:3001
+      BATCH_PREDICTOR_URL: http://batch:3002
+      # Secret used to sign the tokens.
+      JWT_SECRET_KEY: admission_secret_key
+    ports:
+      - "3000:3000"
+    depends_on:
+      - single
+      - batch
+    networks:
+      - admission
+
+networks:
+  admission:
+    driver: bridge
